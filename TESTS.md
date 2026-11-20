@@ -15,7 +15,7 @@ Customer emails are in test mode: they go to the owner's inbox with "[TEST, real
 | 8 | Urgent real lead, full path | "Our office AC is leaking water and not cooling, can someone come today?" | AI: lead, high. Owner email with URGENT. Customer confirmation | ✅ LEAD-0007. Both emails received | 20 Nov |
 | 9 | Saved in CRM | "I want to install 2 new split AC units…" | HubSpot contact created, ID in "CRM contact", status DONE | ✅ LEAD-0008, DONE, contact 932818766071 (after a retry, see bug 4) | 20 Nov |
 | 10 | Same customer again (CRM) | Same email, new message | Same HubSpot contact updated, not a second one | ✅ LEAD-0009 saved to the same contact 932818766071 | 20 Nov |
-| 11 | AI down | demoAiDown, then send the form | Stays NEW "AI failed", retried every 5 min, NEEDS HUMAN after 4 retries + owner email | ⏳ | |
+| 11 | AI down | demoAiDown, then send the form | Stays NEW "AI failed", retried every 5 min, NEEDS HUMAN after 4 retries + owner email | ✅ LEAD-0010: AI ERROR at 16:28, retries at 16:36, 16:41, 16:46, 16:51, NEEDS HUMAN at 16:56, owner email received. Then demoAllUp | 20 Nov |
 | 12 | CRM down | demoCrmDown, then send the form | Emails still sent once, stays NEW "CRM failed", after demoAllUp the retry finishes it: DONE, no second email | ✅ LEAD-0009: emails sent, CRM ERROR. After demoAllUp, the 16:26 retry saved it in HubSpot, DONE, no email sent again | 20 Nov |
 | 13 | Daily summary | Run dailySummary | Lists NOT A LEAD messages of the last 24 h and NEEDS HUMAN leads; says "Nothing to report" when empty | ✅ Ran, nothing in the last 24 h → logged "Nothing to report". Email path checked again after test 11 | 20 Nov |
 
