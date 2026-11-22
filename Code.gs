@@ -31,7 +31,9 @@ const CONFIG = {
   RESPONSES_SHEET: 'Réponses au formulaire 1', // where Google Forms saves the answers
   LOG_SHEET: 'Log',                            // created by the script if missing
   MIN_MESSAGE_LENGTH: 10,                      // shorter messages are REJECTED
-  DUPLICATE_WINDOW_HOURS: 24,                  // same email + same message within this time = DUPLICATE
+  DUPLICATE_WINDOW_HOURS: 1,                   // same email + same message within this time = DUPLICATE
+                                               // (real double-sends happen within minutes; a customer writing
+                                               // the same words again later is a new request)
   LOCK_WAIT_SECONDS: 30,                       // how long to wait if another run is busy
 
   // Form columns (found by header name, so their order does not matter).
@@ -176,6 +178,7 @@ function dailySummary() {
 
   const notLeads = [];
   const needsHuman = [];
+  const duplicates = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const line = row[col.id] + ' | ' + row[col.name] + ' | ' + row[col.email] + ' | ' + row[col.message];
@@ -183,8 +186,11 @@ function dailySummary() {
     if (row[col.status] === 'NOT A LEAD' && new Date(row[col.time]).getTime() >= since) {
       notLeads.push(line + ' | AI: ' + row[col.reason]);
     }
+    if (row[col.status] === 'DUPLICATE' && new Date(row[col.time]).getTime() >= since) {
+      duplicates.push(line + ' | ' + row[col.reason]);
+    }
   }
-  if (!notLeads.length && !needsHuman.length) {
+  if (!notLeads.length && !needsHuman.length && !duplicates.length) {
     log_('', 'daily summary', 'OK', 'Nothing to report');
     return;
   }
@@ -197,11 +203,15 @@ function dailySummary() {
     'Messages the AI marked NOT A LEAD in the last 24 hours (' + notLeads.length + '):',
     notLeads.length ? notLeads.join('\n') : '(none)',
     '',
+    'Requests marked DUPLICATE in the last 24 hours (' + duplicates.length + '):',
+    duplicates.length ? duplicates.join('\n') : '(none)',
+    '',
     'If one of them is a real customer, answer them from the sheet.',
   ].join('\n');
   MailApp.sendEmail(CONFIG.OWNER_EMAIL, CONFIG.BUSINESS_NAME + ' daily check: ' +
-    needsHuman.length + ' need you, ' + notLeads.length + ' marked not a lead', body);
-  log_('', 'daily summary', 'OK', needsHuman.length + ' needs human, ' + notLeads.length + ' not a lead');
+    needsHuman.length + ' need you, ' + notLeads.length + ' not a lead, ' + duplicates.length + ' duplicate', body);
+  log_('', 'daily summary', 'OK', needsHuman.length + ' needs human, ' + notLeads.length + ' not a lead, ' +
+    duplicates.length + ' duplicate');
 }
 
 /** Emails the owner when a lead could not be processed after all retries. */
@@ -339,7 +349,7 @@ function handleNewLead(e) {
     // so a re-run never creates a second contact.
     if (!row[col.crm]) {
       try {
-        const contactId = upsertHubSpotContact_(row, col);
+        const contactId = upsertHubSpotContact_(row, col, ai);
         sheet.getRange(rowNumber, col.crm + 1).setValue(contactId);
         log_(leadId, 'crm', 'OK', 'HubSpot contact ' + contactId);
       } catch (crmErr) {
@@ -600,9 +610,10 @@ function sendCustomerConfirmation_(row, col) {
 
 /**
  * Creates the customer in HubSpot, or updates them if a contact with this email already exists.
+ * The contact's "message" field gets the AI's notes (urgency + summary) and the customer's words.
  * Returns the HubSpot contact ID. Throws if HubSpot is unreachable or refuses.
  */
-function upsertHubSpotContact_(row, col) {
+function upsertHubSpotContact_(row, col, ai) {
   if (isSwitchOn_('SIMULATE_CRM_DOWN')) throw new Error('CRM is down (demo switch SIMULATE_CRM_DOWN is on)');
   const token = PropertiesService.getScriptProperties().getProperty('HUBSPOT_TOKEN');
   if (!token) throw new Error('HUBSPOT_TOKEN is missing in Script Properties');
@@ -616,7 +627,9 @@ function upsertHubSpotContact_(row, col) {
         email: email,
         firstname: String(row[col.name]).trim(),
         phone: String(row[col.phone] || '').trim(),
-        message: String(row[col.message]).trim(),
+        // The AI's notes go first, so the owner sees them when opening the contact in HubSpot.
+        message: 'AI notes: urgency ' + ai.urgency + '. ' + ai.summary +
+          '\nCustomer message: ' + String(row[col.message]).trim(),
       },
     }],
   };
