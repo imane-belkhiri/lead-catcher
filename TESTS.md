@@ -18,6 +18,8 @@ Customer emails are in test mode: they go to the owner's inbox with "[TEST, real
 | 11 | AI down | demoAiDown, then send the form | Stays NEW "AI failed", retried every 5 min, NEEDS HUMAN after 4 retries + owner email | ✅ LEAD-0010: AI ERROR at 16:28, retries at 16:36, 16:41, 16:46, 16:51, NEEDS HUMAN at 16:56, owner email received. Then demoAllUp | 20 Nov |
 | 12 | CRM down | demoCrmDown, then send the form | Emails still sent once, stays NEW "CRM failed", after demoAllUp the retry finishes it: DONE, no second email | ✅ LEAD-0009: emails sent, CRM ERROR. After demoAllUp, the 16:26 retry saved it in HubSpot, DONE, no email sent again | 20 Nov |
 | 13 | Daily summary | Run dailySummary | Lists NOT A LEAD messages of the last 24 h and NEEDS HUMAN leads; says "Nothing to report" when empty | ✅ Ran, nothing in the last 24 h → logged "Nothing to report". Email path checked again after test 11 | 20 Nov |
+| 14 | Same message, 2 days later | Exactly the text of test 8 again, same email, 2 days after | NOT a duplicate (the duplicate window is 1 hour): handled as a new request, same CRM contact updated | ✅ LEAD-0011, DONE, AI high, both emails sent, saved to the same HubSpot contact 932872539347 | 22 Nov |
+| 15 | Nonsense request | Name "zzz", message "asdkjh qwe zzzz lorem 12345 ;;;; xx" | NOT A LEAD, no email to anyone, not saved in CRM, no crash | ✅ LEAD-0012, NOT A LEAD, "no meaningful text". Owner alerted, Customer emailed and CRM contact all empty | 22 Nov |
 
 ## Bugs found while testing (and fixed)
 
@@ -31,3 +33,5 @@ Customer emails are in test mode: they go to the owner's inbox with "[TEST, real
 
 - No request was lost in any test, including the crash, the 6-minute hang and the services being down.
 - Re-running a lead never sent an email twice (LEAD-0007 and LEAD-0009 were re-run after their emails).
+- Only real duplicates are blocked: the same message within 1 hour. A customer who writes again later is treated as a new request.
+- Junk and spam never reach the owner, the customer or the CRM. They are listed in the daily summary instead, so nothing is silently thrown away.
